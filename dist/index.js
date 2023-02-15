@@ -1869,7 +1869,13 @@ function run() {
                 }
             }
         }));
-        yield postDiffComment(diffs);
+        core.info('here');
+        try {
+            yield postDiffComment(diffs);
+        }
+        catch (e) {
+            core.error(e);
+        }
         const diffsWithErrors = diffs.filter(d => d.error);
         if (diffsWithErrors.length) {
             core.setFailed(`ArgoCD diff failed: Encountered ${diffsWithErrors.length} errors`);

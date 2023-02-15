@@ -98,7 +98,7 @@ async function getApps(): Promise<App[]> {
     core.error(e);
   }
 
-  return (responseJson.items as App[]);
+  return responseJson.items as App[];
 }
 
 interface Diff {
@@ -229,7 +229,12 @@ async function run(): Promise<void> {
       }
     }
   });
-  await postDiffComment(diffs);
+  core.info('here');
+  try {
+    await postDiffComment(diffs);
+  } catch (e) {
+    core.error(e);
+  }
   const diffsWithErrors = diffs.filter(d => d.error);
   if (diffsWithErrors.length) {
     core.setFailed(`ArgoCD diff failed: Encountered ${diffsWithErrors.length} errors`);
