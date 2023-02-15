@@ -106,6 +106,20 @@ interface Diff {
   diff: string;
   error?: ExecResult;
 }
+
+async function getIssueNumberFromCommitPullsList(
+  owner: string,
+  repo: string,
+  commitSha: string
+): Promise<number | null> {
+  const commitPullsList = await octokit.rest.repos.listPullRequestsAssociatedWithCommit({
+    owner,
+    repo,
+    commit_sha: commitSha
+  });
+  return commitPullsList.data.length ? commitPullsList.data[0].number : null;
+}
+
 async function postDiffComment(diffs: Diff[]): Promise<void> {
   const { owner, repo } = github.context.repo;
   const sha = github.context.payload.pull_request?.head?.sha;
@@ -164,21 +178,24 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angele
 `);
 
   core.info(JSON.stringify(github.context));
-  
+
+  const issue_number = await getIssueNumberFromCommitPullsList(owner, repo, github.context.sha);
+
+  if (issue_number === null) {
+    core.info('no pr link to this commit, aborting');
+    return;
+  }
+
   const commentsResponse = await octokit.rest.issues.listComments({
-    issue_number: github.context.issue.number,
+    issue_number,
     owner,
     repo
   });
-
-  core.info("1");
 
   const existingComment = commentsResponse.data.find(d => d.body!.includes('ArgoCD Diff for'));
 
   // Existing comments should be updated even if there are no changes this round in order to indicate that
   if (existingComment) {
-    core.info("2");
-    
     octokit.rest.issues.updateComment({
       owner,
       repo,
@@ -187,10 +204,8 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angele
     });
     // Only post a new comment when there are changes
   } else if (diffs.length) {
-    core.info("3");
-    
     octokit.rest.issues.createComment({
-      issue_number: github.context.issue.number,
+      issue_number,
       owner,
       repo,
       body: output

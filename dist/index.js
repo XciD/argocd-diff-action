@@ -1756,6 +1756,16 @@ function getApps() {
         return responseJson.items;
     });
 }
+function getIssueNumberFromCommitPullsList(owner, repo, commitSha) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const commitPullsList = yield octokit.rest.repos.listPullRequestsAssociatedWithCommit({
+            owner,
+            repo,
+            commit_sha: commitSha
+        });
+        return commitPullsList.data.length ? commitPullsList.data[0].number : null;
+    });
+}
 function postDiffComment(diffs) {
     var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
@@ -1806,16 +1816,19 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angele
 | 🛑     | There was an error generating the ArgoCD diffs due to changes in this PR. |
 `);
         core.info(JSON.stringify(github.context));
+        const issue_number = yield getIssueNumberFromCommitPullsList(owner, repo, github.context.sha);
+        if (issue_number === null) {
+            core.info('no pr link to this commit, aborting');
+            return;
+        }
         const commentsResponse = yield octokit.rest.issues.listComments({
-            issue_number: github.context.issue.number,
+            issue_number,
             owner,
             repo
         });
-        core.info("1");
         const existingComment = commentsResponse.data.find(d => d.body.includes('ArgoCD Diff for'));
         // Existing comments should be updated even if there are no changes this round in order to indicate that
         if (existingComment) {
-            core.info("2");
             octokit.rest.issues.updateComment({
                 owner,
                 repo,
@@ -1825,9 +1838,8 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angele
             // Only post a new comment when there are changes
         }
         else if (diffs.length) {
-            core.info("3");
             octokit.rest.issues.createComment({
-                issue_number: github.context.issue.number,
+                issue_number,
                 owner,
                 repo,
                 body: output
