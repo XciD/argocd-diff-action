@@ -1805,14 +1805,17 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angele
 | ⚠️      | The app is out-of-sync in ArgoCD, and the diffs you see include those changes plus any from this PR. |
 | 🛑     | There was an error generating the ArgoCD diffs due to changes in this PR. |
 `);
+        core.info(output);
         const commentsResponse = yield octokit.rest.issues.listComments({
             issue_number: github.context.issue.number,
             owner,
             repo
         });
+        core.info("1");
         const existingComment = commentsResponse.data.find(d => d.body.includes('ArgoCD Diff for'));
         // Existing comments should be updated even if there are no changes this round in order to indicate that
         if (existingComment) {
+            core.info("2");
             octokit.rest.issues.updateComment({
                 owner,
                 repo,
@@ -1822,6 +1825,7 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angele
             // Only post a new comment when there are changes
         }
         else if (diffs.length) {
+            core.info("3");
             octokit.rest.issues.createComment({
                 issue_number: github.context.issue.number,
                 owner,
@@ -1869,7 +1873,6 @@ function run() {
                 }
             }
         }));
-        core.info('here');
         try {
             yield postDiffComment(diffs);
         }
