@@ -84,7 +84,7 @@ async function setupArgoCDCommand(): Promise<(params: string) => Promise<ExecRes
 }
 
 async function getApps(): Promise<App[]> {
-  const url = `https://${ARGOCD_SERVER_URL}/api/v1/applications?fields=items.metadata.name,items.spec.source.path,items.spec.source.repoURL,items.spec.source.targetRevision,items.spec.source.helm,items.spec.source.kustomize,items.status.sync.status`;
+  const url = `https://${ARGOCD_SERVER_URL}/api/v1/applications?repo=https://github.com/${github.context.repo.owner}/${github.context.repo.repo}`;
   core.info(`Fetching apps from: ${url}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let responseJson: any;
@@ -98,13 +98,7 @@ async function getApps(): Promise<App[]> {
     core.error(e);
   }
 
-  return (responseJson.items as App[]).filter(app => {
-    return (
-      app.spec.source.repoURL.includes(
-        `${github.context.repo.owner}/${github.context.repo.repo}`
-      ) && (app.spec.source.targetRevision === 'master' || app.spec.source.targetRevision === 'main')
-    );
-  });
+  return (responseJson.items as App[]);
 }
 
 interface Diff {
