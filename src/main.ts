@@ -163,7 +163,7 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angele
 | 🛑     | There was an error generating the ArgoCD diffs due to changes in this PR. |
 `);
 
-  core.info(output);
+  core.info(JSON.stringify(github.context));
   
   const commentsResponse = await octokit.rest.issues.listComments({
     issue_number: github.context.issue.number,
