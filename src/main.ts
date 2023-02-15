@@ -177,8 +177,6 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'Europe Paris' })} 
 | 🛑     | There was an error generating the ArgoCD diffs due to changes in this PR. |
 `);
 
-  core.info(JSON.stringify(github.context));
-
   const issue_number = await getIssueNumberFromCommitPullsList(owner, repo, github.context.sha);
 
   if (issue_number === null) {
@@ -191,6 +189,8 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'Europe Paris' })} 
     owner,
     repo
   });
+
+  core.info(JSON.stringify(commentsResponse));
 
   const existingComment = commentsResponse.data.find(d => d.body!.includes('ArgoCD Diff for'));
 

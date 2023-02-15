@@ -1767,10 +1767,9 @@ function getIssueNumberFromCommitPullsList(owner, repo, commitSha) {
     });
 }
 function postDiffComment(diffs) {
-    var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
         const { owner, repo } = github.context.repo;
-        const sha = (_b = (_a = github.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.head) === null || _b === void 0 ? void 0 : _b.sha;
+        const sha = github.context.sha;
         const commitLink = `https://github.com/${owner}/${repo}/pull/${github.context.issue.number}/commits/${sha}`;
         const shortCommitSha = String(sha).substr(0, 7);
         const diffOutput = diffs.map(({ app, diff, error }) => `   
@@ -1806,7 +1805,7 @@ ${diff}
 `);
         const output = scrubSecrets(`
 ## ArgoCD Diff for commit [\`${shortCommitSha}\`](${commitLink})
-_Updated at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })} PT_
+_Updated at ${new Date().toLocaleString('en-US', { timeZone: 'Europe Paris' })} CEST_
   ${diffOutput.join('\n')}
 
 | Legend | Status |
@@ -1815,7 +1814,6 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angele
 | ⚠️      | The app is out-of-sync in ArgoCD, and the diffs you see include those changes plus any from this PR. |
 | 🛑     | There was an error generating the ArgoCD diffs due to changes in this PR. |
 `);
-        core.info(JSON.stringify(github.context));
         const issue_number = yield getIssueNumberFromCommitPullsList(owner, repo, github.context.sha);
         if (issue_number === null) {
             core.info('no pr link to this commit, aborting');
@@ -1826,6 +1824,7 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angele
             owner,
             repo
         });
+        core.info(JSON.stringify(commentsResponse));
         const existingComment = commentsResponse.data.find(d => d.body.includes('ArgoCD Diff for'));
         // Existing comments should be updated even if there are no changes this round in order to indicate that
         if (existingComment) {
