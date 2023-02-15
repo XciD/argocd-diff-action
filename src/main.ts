@@ -107,22 +107,9 @@ interface Diff {
   error?: ExecResult;
 }
 
-async function getIssueNumberFromCommitPullsList(
-  owner: string,
-  repo: string,
-  commitSha: string
-): Promise<number | null> {
-  const commitPullsList = await octokit.rest.repos.listPullRequestsAssociatedWithCommit({
-    owner,
-    repo,
-    commit_sha: commitSha
-  });
-  return commitPullsList.data.length ? commitPullsList.data[0].number : null;
-}
-
 async function postDiffComment(diffs: Diff[]): Promise<void> {
   const { owner, repo } = github.context.repo;
-  const sha = github.context.sha;
+  const sha = github.context.payload.pull_request?.head?.sha;
 
   const commitLink = `https://github.com/${owner}/${repo}/pull/${github.context.issue.number}/commits/${sha}`;
   const shortCommitSha = String(sha).substr(0, 7);
@@ -177,16 +164,8 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' })} 
 | 🛑     | There was an error generating the ArgoCD diffs due to changes in this PR. |
 `);
   
-  core.info(JSON.stringify(github.context));
-  const issue_number = await getIssueNumberFromCommitPullsList(owner, repo, github.context.sha);
-
-  if (issue_number === null) {
-    core.info('no pr link to this commit, aborting');
-    return;
-  }
-
   const commentsResponse = await octokit.rest.issues.listComments({
-    issue_number,
+    issue_number: github.context.issue.number,
     owner,
     repo
   });
@@ -206,7 +185,7 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' })} 
     // Only post a new comment when there are changes
   } else if (diffs.length) {
     octokit.rest.issues.createComment({
-      issue_number,
+      issue_number: github.context.issue.number,
       owner,
       repo,
       body: output

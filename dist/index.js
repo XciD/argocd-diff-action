@@ -1756,20 +1756,11 @@ function getApps() {
         return responseJson.items;
     });
 }
-function getIssueNumberFromCommitPullsList(owner, repo, commitSha) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const commitPullsList = yield octokit.rest.repos.listPullRequestsAssociatedWithCommit({
-            owner,
-            repo,
-            commit_sha: commitSha
-        });
-        return commitPullsList.data.length ? commitPullsList.data[0].number : null;
-    });
-}
 function postDiffComment(diffs) {
+    var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
         const { owner, repo } = github.context.repo;
-        const sha = github.context.sha;
+        const sha = (_b = (_a = github.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.head) === null || _b === void 0 ? void 0 : _b.sha;
         const commitLink = `https://github.com/${owner}/${repo}/pull/${github.context.issue.number}/commits/${sha}`;
         const shortCommitSha = String(sha).substr(0, 7);
         const diffOutput = diffs.map(({ app, diff, error }) => `   
@@ -1814,13 +1805,8 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' })} 
 | ⚠️      | The app is out-of-sync in ArgoCD, and the diffs you see include those changes plus any from this PR. |
 | 🛑     | There was an error generating the ArgoCD diffs due to changes in this PR. |
 `);
-        const issue_number = yield getIssueNumberFromCommitPullsList(owner, repo, github.context.sha);
-        if (issue_number === null) {
-            core.info('no pr link to this commit, aborting');
-            return;
-        }
         const commentsResponse = yield octokit.rest.issues.listComments({
-            issue_number,
+            issue_number: github.context.issue.number,
             owner,
             repo
         });
@@ -1838,7 +1824,7 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' })} 
         }
         else if (diffs.length) {
             octokit.rest.issues.createComment({
-                issue_number,
+                issue_number: github.context.issue.number,
                 owner,
                 repo,
                 body: output
