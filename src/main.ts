@@ -122,7 +122,7 @@ async function getIssueNumberFromCommitPullsList(
 
 async function postDiffComment(diffs: Diff[]): Promise<void> {
   const { owner, repo } = github.context.repo;
-  const sha = github.context.payload.pull_request?.head?.sha;
+  const sha = github.context.sha;
 
   const commitLink = `https://github.com/${owner}/${repo}/pull/${github.context.issue.number}/commits/${sha}`;
   const shortCommitSha = String(sha).substr(0, 7);
@@ -167,7 +167,7 @@ ${diff}
 
   const output = scrubSecrets(`
 ## ArgoCD Diff for commit [\`${shortCommitSha}\`](${commitLink})
-_Updated at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })} PT_
+_Updated at ${new Date().toLocaleString('en-US', { timeZone: 'Europe Paris' })} CEST_
   ${diffOutput.join('\n')}
 
 | Legend | Status |
