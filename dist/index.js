@@ -1753,6 +1753,7 @@ function getApps() {
         catch (e) {
             core.error(e);
         }
+        core.info(JSON.stringify(responseJson));
         return responseJson.items;
     });
 }

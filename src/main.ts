@@ -99,6 +99,8 @@ async function getApps(): Promise<App[]> {
     core.error(e);
   }
 
+  core.info(JSON.stringify(responseJson));
+
   return responseJson.items as App[];
 }
 
