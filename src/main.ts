@@ -155,7 +155,7 @@ ${diff}
 `
   );
 
-  const output = scrubSecrets(`
+  let output = scrubSecrets(`
 ## ArgoCD Diff for commit [\`${shortCommitSha}\`](${commitLink})
 _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' })} CEST_
   ${diffOutput.join('\n')}
@@ -166,6 +166,13 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' })} 
 | ⚠️      | The app is out-of-sync in ArgoCD, and the diffs you see include those changes plus any from this PR. |
 | 🛑     | There was an error generating the ArgoCD diffs due to changes in this PR. |
 `);
+
+  if (output.length > 65536) {
+    output = `${output.slice(
+      0,
+      65000
+    )}...\n\n**Warning: The comment is too long and has been truncated.**`;
+  }
 
   const commentsResponse = await octokit.rest.issues.listComments({
     issue_number: github.context.issue.number,
