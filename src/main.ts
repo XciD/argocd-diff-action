@@ -167,7 +167,7 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' })} 
 | 🛑     | There was an error generating the ArgoCD diffs due to changes in this PR. |
 `);
 
-  if (output.length > 65536) {
+  if (output.length >= 65535) {
     output = `${output.slice(
       0,
       65000
