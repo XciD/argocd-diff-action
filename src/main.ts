@@ -95,7 +95,7 @@ async function getApps(): Promise<App[]> {
       headers: { Cookie: `argocd.token=${ARGOCD_TOKEN}` }
     });
     responseJson = await response.json();
-  } catch (e) {
+  } catch (e: any) {
     core.error(e);
   }
 
@@ -120,7 +120,7 @@ async function postDiffComments(diffs: Diff[]): Promise<void> {
   // Build individual diff blocks
   const diffBlocks = diffs.map(({ app, diff, error }) => {
     return scrubSecrets(`
-App: [\`${app.metadata.name}\`](https://${ARGOCD_SERVER_URL}/applications/${app.metadata.name}) 
+App: [\`${app.metadata.name}\`](https://${ARGOCD_SERVER_URL}/applications/${app.metadata.name})
 YAML generation: ${error ? "Error 🛑" : "Success 🟢"}
 App sync status: ${
       app.status.sync.status === "Synced" ? "Synced ✅" : "Out of Sync ⚠️ "
@@ -258,14 +258,14 @@ async function run(): Promise<void> {
         diffs.push({
           app,
           diff: '',
-          error: e
+          error: res
         });
       }
     }
   });
   try {
     await postDiffComments(diffs);
-  } catch (e) {
+  } catch (e: any) {
     core.error(e);
   }
   const diffsWithErrors = diffs.filter(d => d.error);
