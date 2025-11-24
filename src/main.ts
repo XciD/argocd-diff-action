@@ -110,21 +110,22 @@ interface Diff {
   error?: ExecResult;
 }
 
-async function postDiffComment(diffs: Diff[]): Promise<void> {
+async function postDiffComments(diffs: Diff[]): Promise<void> {
   const { owner, repo } = github.context.repo;
+  const issue_number = github.context.issue.number;
   const sha = github.context.payload.pull_request?.head?.sha;
+  const shortCommitSha = String(sha).substring(0, 7);
+  const commitLink = `https://github.com/${owner}/${repo}/pull/${issue_number}/commits/${sha}`;
 
-  const commitLink = `https://github.com/${owner}/${repo}/pull/${github.context.issue.number}/commits/${sha}`;
-  const shortCommitSha = String(sha).substr(0, 7);
-
-  const diffOutput = diffs.map(
-    ({ app, diff, error }) => `   
+  // Build individual diff blocks
+  const diffBlocks = diffs.map(({ app, diff, error }) => {
+    return scrubSecrets(`
 App: [\`${app.metadata.name}\`](https://${ARGOCD_SERVER_URL}/applications/${app.metadata.name}) 
-YAML generation: ${error ? ' Error 🛑' : 'Success 🟢'}
-App sync status: ${app.status.sync.status === 'Synced' ? 'Synced ✅' : 'Out of Sync ⚠️ '}
-${
-  error
-    ? `
+YAML generation: ${error ? "Error 🛑" : "Success 🟢"}
+App sync status: ${
+      app.status.sync.status === "Synced" ? "Synced ✅" : "Out of Sync ⚠️ "
+    }
+${error ? `
 **\`stderr:\`**
 \`\`\`
 ${error.stderr}
@@ -134,31 +135,22 @@ ${error.stderr}
 \`\`\`json
 ${JSON.stringify(error.err)}
 \`\`\`
-`
-    : ''
-}
-
-${
-  diff
-    ? `
+` : ""}
+${diff ? `
 <details>
-
 \`\`\`diff
 ${diff}
 \`\`\`
-
 </details>
-`
-    : ''
-}
+` : ""}
 ---
-`
-  );
+`);
+  });
 
-  const output = scrubSecrets(`
+  // Header block (goes in comment #1) ----
+  const headerBlock = scrubSecrets(`
 ## ArgoCD Diff for commit [\`${shortCommitSha}\`](${commitLink})
-_Updated at ${new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' })} CEST_
-  ${diffOutput.join('\n')}
+_Updated at ${new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" })} CEST_
 
 | Legend | Status |
 | :---:  | :---   |
@@ -167,34 +159,70 @@ _Updated at ${new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' })} 
 | 🛑     | There was an error generating the ArgoCD diffs due to changes in this PR. |
 `);
 
-  const commentsResponse = await octokit.rest.issues.listComments({
-    issue_number: github.context.issue.number,
-    owner,
-    repo
-  });
+  const MAX = 60000;
 
-  core.info(JSON.stringify(commentsResponse));
+  // Split into several comments if too long (each < MAX chars) ----
+  const commentsToPost: string[] = [];
 
-  const existingComment = commentsResponse.data.find(d => d.body!.includes('ArgoCD Diff for'));
+  // First comment is only header + first few diffs until full
+  {
+    let block = headerBlock + "\n\n";
+    for (const diffBlock of diffBlocks) {
+      if (block.length + diffBlock.length > MAX) break;
+      block += diffBlock + "\n";
+    }
+    commentsToPost.push(block);
+  }
 
-  // Existing comments should be updated even if there are no changes this round in order to indicate that
-  if (existingComment) {
-    octokit.rest.issues.updateComment({
+  // Remaining diffs (atomic chunks)
+  {
+    let current = "";
+    for (const diffBlock of diffBlocks.slice(0).filter(b => !commentsToPost[0].includes(b))) {
+      if (current.length + diffBlock.length > MAX) {
+        commentsToPost.push(current);
+        current = "";
+      }
+      current += diffBlock + "\n";
+    }
+    if (current.trim().length > 0) commentsToPost.push(current);
+  }
+
+  // List comments and only keep argo comments, ignore others
+  const { data: existingComments } = await octokit.rest.issues.listComments({ owner, repo, issue_number });
+  const argoComments = existingComments.filter(c => c.body?.includes("ArgoCD Diff for"));
+
+  // Update or create comments, delete the extra previous ones
+  for (let i = 0; i < commentsToPost.length; i++) {
+    const body = commentsToPost[i];
+    if (argoComments[i]) {
+      // update existing
+      await octokit.rest.issues.updateComment({
+        owner,
+        repo,
+        comment_id: argoComments[i].id,
+        body
+      });
+    } else {
+      // create new
+      await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number,
+        body
+      });
+    }
+  }
+
+  // Delete extra stale ones
+  for (let i = commentsToPost.length; i < argoComments.length; i++) {
+    await octokit.rest.issues.deleteComment({
       owner,
       repo,
-      comment_id: existingComment.id,
-      body: output
-    });
-    // Only post a new comment when there are changes
-  } else if (diffs.length) {
-    octokit.rest.issues.createComment({
-      issue_number: github.context.issue.number,
-      owner,
-      repo,
-      body: output
+      comment_id: argoComments[i].id
     });
   }
 }
+
 
 async function asyncForEach<T>(
   array: T[],
@@ -236,7 +264,7 @@ async function run(): Promise<void> {
     }
   });
   try {
-    await postDiffComment(diffs);
+    await postDiffComments(diffs);
   } catch (e) {
     core.error(e);
   }
