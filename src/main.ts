@@ -137,11 +137,15 @@ ${JSON.stringify(error.err)}
 \`\`\`
 ` : ""}
 ${diff ? `
+
 <details>
+
 \`\`\`diff
 ${diff}
 \`\`\`
+
 </details>
+
 ` : ""}
 ---
 `);
@@ -157,6 +161,8 @@ _Updated at ${new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" })} 
 | ✅     | The app is synced in ArgoCD, and diffs you see are solely from this PR. |
 | ⚠️      | The app is out-of-sync in ArgoCD, and the diffs you see include those changes plus any from this PR. |
 | 🛑     | There was an error generating the ArgoCD diffs due to changes in this PR. |
+
+
 `);
 
   const MAX = 60000;
@@ -166,7 +172,7 @@ _Updated at ${new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" })} 
 
   // First comment is only header + first few diffs until full
   {
-    let block = headerBlock + "\n\n";
+    let block = headerBlock;
     for (const diffBlock of diffBlocks) {
       if (block.length + diffBlock.length > MAX) break;
       block += diffBlock + "\n";
@@ -176,11 +182,11 @@ _Updated at ${new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" })} 
 
   // Remaining diffs (atomic chunks)
   {
-    let current = "";
+    let current = headerBlock;
     for (const diffBlock of diffBlocks.slice(0).filter(b => !commentsToPost[0].includes(b))) {
       if (current.length + diffBlock.length > MAX) {
         commentsToPost.push(current);
-        current = "";
+        current = headerBlock;
       }
       current += diffBlock + "\n";
     }
