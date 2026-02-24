@@ -4,7 +4,7 @@ import * as path from 'path';
 
 // Mock github context before importing the module
 const mockContext = {
-  repo: { owner: 'huggingface-internal', repo: 'workloads' },
+  repo: { owner: 'acme-org', repo: 'my-app' },
   issue: { number: 1 },
   payload: { pull_request: { head: { sha: 'abc1234' } } }
 };
@@ -82,16 +82,16 @@ function getAppSource(app: App, repoOwner: string, repoName: string): ResolvedSo
 }
 
 describe('getAppSource', () => {
-  const owner = 'huggingface-internal';
-  const repo = 'workloads';
+  const owner = 'acme-org';
+  const repo = 'my-app';
 
   it('returns source for single-source app', () => {
     const app: App = {
-      metadata: { name: 'cluster-api-prod' },
+      metadata: { name: 'single-source-app' },
       spec: {
         source: {
-          repoURL: 'https://github.com/huggingface-internal/workloads',
-          path: 'helm/cluster-api',
+          repoURL: 'https://github.com/acme-org/my-app',
+          path: 'helm/api',
           targetRevision: 'HEAD',
           helm: { valueFiles: ['env/prod.yaml'] }
         },
@@ -102,28 +102,28 @@ describe('getAppSource', () => {
 
     const result = getAppSource(app, owner, repo);
     expect(result).not.toBeNull();
-    expect(result!.source.path).toBe('helm/cluster-api');
+    expect(result!.source.path).toBe('helm/api');
     expect(result!.sourcePosition).toBeUndefined();
   });
 
   it('returns correct source and position for multi-source app', () => {
     const app: App = {
-      metadata: { name: 'ep-compute-prod' },
+      metadata: { name: 'multi-source-app' },
       spec: {
         source: null,
         sources: [
           {
-            repoURL: 'https://github.com/huggingface-internal/workloads',
-            path: 'helm/workload-compute-plane',
+            repoURL: 'https://github.com/acme-org/my-app',
+            path: 'helm/app-chart',
             targetRevision: 'HEAD',
             helm: {},
             ref: 'app-source'
           },
           {
-            repoURL: 'https://github.com/huggingface/infra-deployments.git',
+            repoURL: 'https://github.com/acme-org/shared-configs.git',
             path: '',
             targetRevision: 'HEAD',
-            ref: 'infra-deployments-source'
+            ref: 'shared-configs-source'
           }
         ]
       },
@@ -132,7 +132,7 @@ describe('getAppSource', () => {
 
     const result = getAppSource(app, owner, repo);
     expect(result).not.toBeNull();
-    expect(result!.source.path).toBe('helm/workload-compute-plane');
+    expect(result!.source.path).toBe('helm/app-chart');
     expect(result!.sourcePosition).toBe(1);
   });
 
@@ -158,19 +158,19 @@ describe('getAppSource', () => {
 
   it('skips multi-source entries without a path (ref-only sources)', () => {
     const app: App = {
-      metadata: { name: 'ep-compute-prod' },
+      metadata: { name: 'multi-source-app' },
       spec: {
         source: null,
         sources: [
           {
-            repoURL: 'https://github.com/huggingface/infra-deployments.git',
+            repoURL: 'https://github.com/acme-org/shared-configs.git',
             path: '',
             targetRevision: 'HEAD',
-            ref: 'infra-deployments-source'
+            ref: 'shared-configs-source'
           },
           {
-            repoURL: 'https://github.com/huggingface-internal/workloads',
-            path: 'helm/workload-compute-plane',
+            repoURL: 'https://github.com/acme-org/my-app',
+            path: 'helm/app-chart',
             targetRevision: 'HEAD',
             helm: {},
             ref: 'app-source'
@@ -182,7 +182,7 @@ describe('getAppSource', () => {
 
     const result = getAppSource(app, owner, repo);
     expect(result).not.toBeNull();
-    expect(result!.source.path).toBe('helm/workload-compute-plane');
+    expect(result!.source.path).toBe('helm/app-chart');
     expect(result!.sourcePosition).toBe(2);
   });
 
@@ -205,13 +205,13 @@ describe('getAppSource', () => {
       metadata: { name: 'legacy-app' },
       spec: {
         source: {
-          repoURL: 'https://github.com/huggingface-internal/workloads',
+          repoURL: 'https://github.com/acme-org/my-app',
           path: 'helm/legacy',
           targetRevision: 'HEAD'
         },
         sources: [
           {
-            repoURL: 'https://github.com/huggingface-internal/workloads',
+            repoURL: 'https://github.com/acme-org/my-app',
             path: 'helm/new-path',
             targetRevision: 'HEAD'
           }
