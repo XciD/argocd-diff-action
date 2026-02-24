@@ -262,6 +262,7 @@ function run() {
         core.info(`Found apps: ${apps.map(a => a.metadata.name).join(', ')}`);
         const diffs = [];
         yield asyncForEach(apps, (app) => __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c;
             const resolved = getAppSource(app);
             if (!resolved) {
                 core.warning(`Skipping app ${app.metadata.name}: no matching source found for this repo`);
@@ -269,7 +270,8 @@ function run() {
             }
             let command = `app diff ${app.metadata.name} --local=${resolved.source.path}`;
             if (resolved.sourcePosition) {
-                command += ` --source-positions=${resolved.sourcePosition}`;
+                const sha = (_c = (_b = (_a = github.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.head) === null || _b === void 0 ? void 0 : _b.sha) !== null && _c !== void 0 ? _c : 'HEAD';
+                command += ` --source-positions=${resolved.sourcePosition} --revisions=${sha}`;
             }
             try {
                 core.info(`Running: argocd ${command}`);

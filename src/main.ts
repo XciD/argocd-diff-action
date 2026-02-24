@@ -283,7 +283,8 @@ async function run(): Promise<void> {
 
     let command = `app diff ${app.metadata.name} --local=${resolved.source.path}`;
     if (resolved.sourcePosition) {
-      command += ` --source-positions=${resolved.sourcePosition}`;
+      const sha = github.context.payload.pull_request?.head?.sha ?? 'HEAD';
+      command += ` --source-positions=${resolved.sourcePosition} --revisions=${sha}`;
     }
 
     try {
