@@ -1,6 +1,6 @@
 import * as core from '@actions/core';
 import * as tc from '@actions/tool-cache';
-import { exec, ExecException, ExecOptions } from 'child_process';
+import { exec, ExecOptions } from 'child_process';
 import * as github from '@actions/github';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -16,8 +16,8 @@ interface AppSource {
   repoURL: string;
   path: string;
   targetRevision: string;
-  kustomize: Object;
-  helm: Object;
+  kustomize: object;
+  helm: object;
   ref?: string;
 }
 
