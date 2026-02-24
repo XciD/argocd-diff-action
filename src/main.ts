@@ -4,7 +4,7 @@ import { exec, ExecException, ExecOptions } from 'child_process';
 import * as github from '@actions/github';
 import * as fs from 'fs';
 import * as path from 'path';
-import nodeFetch from 'node-fetch';
+
 
 interface ExecResult {
   err?: Error | undefined;
@@ -12,16 +12,20 @@ interface ExecResult {
   stderr: string;
 }
 
+interface AppSource {
+  repoURL: string;
+  path: string;
+  targetRevision: string;
+  kustomize: Object;
+  helm: Object;
+  ref?: string;
+}
+
 interface App {
   metadata: { name: string };
   spec: {
-    source: {
-      repoURL: string;
-      path: string;
-      targetRevision: string;
-      kustomize: Object;
-      helm: Object;
-    };
+    source: AppSource | null;
+    sources: AppSource[] | null;
   };
   status: {
     sync: {
@@ -42,10 +46,10 @@ const octokit = github.getOctokit(githubToken);
 
 async function execCommand(command: string, options: ExecOptions = {}): Promise<ExecResult> {
   const p = new Promise<ExecResult>(async (done, failed) => {
-    exec(command, options, (err: ExecException | null, stdout: string, stderr: string): void => {
+    exec(command, { ...options, encoding: 'utf-8' }, (err, stdout, stderr): void => {
       const res: ExecResult = {
-        stdout,
-        stderr
+        stdout: stdout ?? '',
+        stderr: stderr ?? ''
       };
       if (err) {
         res.err = err;
@@ -87,21 +91,45 @@ async function setupArgoCDCommand(): Promise<(params: string) => Promise<ExecRes
 async function getApps(): Promise<App[]> {
   const url = `https://${ARGOCD_SERVER_URL}/api/v1/applications?repo=https://github.com/${github.context.repo.owner}/${github.context.repo.repo}`;
   core.info(`Fetching apps from: ${url}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let responseJson: any;
-  try {
-    const response = await nodeFetch(url, {
-      method: 'GET',
-      headers: { Cookie: `argocd.token=${ARGOCD_TOKEN}` }
-    });
-    responseJson = await response.json();
-  } catch (e: any) {
-    core.error(e);
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { Cookie: `argocd.token=${ARGOCD_TOKEN}` }
+  });
+
+  if (!response.ok) {
+    throw new Error(`ArgoCD API returned ${response.status}: ${response.statusText}`);
   }
 
-  core.info(JSON.stringify(responseJson));
+  const responseJson = await response.json() as any;
+  core.info(`Found ${responseJson.items?.length ?? 0} apps`);
 
-  return responseJson.items as App[];
+  return (responseJson.items ?? []) as App[];
+}
+
+interface ResolvedSource {
+  source: AppSource;
+  sourcePosition?: number; // 1-indexed, only set for multi-source apps
+}
+
+function getAppSource(app: App): ResolvedSource | null {
+  const repoUrl = `https://github.com/${github.context.repo.owner}/${github.context.repo.repo}`;
+
+  // Single-source app
+  if (app.spec.source) {
+    return { source: app.spec.source };
+  }
+
+  // Multi-source app: find the source matching this repo that has a path
+  if (app.spec.sources) {
+    for (let i = 0; i < app.spec.sources.length; i++) {
+      const s = app.spec.sources[i];
+      if (s.repoURL === repoUrl && s.path) {
+        return { source: s, sourcePosition: i + 1 };
+      }
+    }
+  }
+
+  return null;
 }
 
 interface Diff {
@@ -247,7 +275,17 @@ async function run(): Promise<void> {
   const diffs: Diff[] = [];
 
   await asyncForEach(apps, async app => {
-    const command = `app diff ${app.metadata.name} --local=${app.spec.source.path}`;
+    const resolved = getAppSource(app);
+    if (!resolved) {
+      core.warning(`Skipping app ${app.metadata.name}: no matching source found for this repo`);
+      return;
+    }
+
+    let command = `app diff ${app.metadata.name} --local=${resolved.source.path}`;
+    if (resolved.sourcePosition) {
+      command += ` --source-positions=${resolved.sourcePosition}`;
+    }
+
     try {
       core.info(`Running: argocd ${command}`);
       // ArgoCD app diff will exit 1 if there is a diff, so always catch,
