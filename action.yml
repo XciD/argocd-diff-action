@@ -10,7 +10,7 @@ inputs:
     required: true
   argocd-version: 
     description: ArgoCD Version
-    default: v1.6.1
+    default: v3.2.0
     required: false
   github-token: 
     description: Github Token
@@ -20,5 +20,5 @@ inputs:
     default: --grpc-web
     required: false
 runs:
-  using: 'node12'
+  using: 'node20'
   main: 'dist/index.js'
