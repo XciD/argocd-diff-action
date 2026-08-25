@@ -62,6 +62,7 @@ const ARGOCD_SERVER_URL = core.getInput('argocd-server-url');
 const ARGOCD_TOKEN = core.getInput('argocd-token');
 const VERSION = core.getInput('argocd-version');
 const EXTRA_CLI_ARGS = core.getInput('argocd-extra-cli-args');
+const APP_PATH_FILTER = core.getInput('app-path-filter');
 const octokit = github.getOctokit(githubToken);
 function execCommand(command_1) {
     return __awaiter(this, arguments, void 0, function* (command, options = {}) {
@@ -266,6 +267,10 @@ function run() {
             const resolved = getAppSource(app);
             if (!resolved) {
                 core.warning(`Skipping app ${app.metadata.name}: no matching source found for this repo`);
+                return;
+            }
+            if (APP_PATH_FILTER && !resolved.source.path.startsWith(APP_PATH_FILTER)) {
+                core.info(`Skipping app ${app.metadata.name}: path is outside ${APP_PATH_FILTER}`);
                 return;
             }
             let command = `app diff ${app.metadata.name} --local=${resolved.source.path}`;
