@@ -42,6 +42,7 @@ const ARGOCD_TOKEN = core.getInput('argocd-token');
 const VERSION = core.getInput('argocd-version');
 const EXTRA_CLI_ARGS = core.getInput('argocd-extra-cli-args');
 const APP_PATH_FILTER = core.getInput('app-path-filter');
+const COMMENT = core.getInput('comment') !== 'false';
 
 const octokit = github.getOctokit(githubToken);
 
@@ -314,10 +315,12 @@ async function run(): Promise<void> {
       }
     }
   });
-  try {
-    await postDiffComments(diffs);
-  } catch (e: any) {
-    core.error(e);
+  if (COMMENT) {
+    try {
+      await postDiffComments(diffs);
+    } catch (e: any) {
+      core.error(e);
+    }
   }
   const diffsWithErrors = diffs.filter(d => d.error);
   if (diffsWithErrors.length) {

@@ -23,6 +23,10 @@ inputs:
     description: Diff only the apps whose source path starts with this prefix. Empty means all apps.
     default: ''
     required: false
+  comment: 
+    description: Post the diff as a PR comment. When false, the action only fails on diff generation errors.
+    default: 'true'
+    required: false
 runs:
   using: 'node20'
   main: 'dist/index.js'
