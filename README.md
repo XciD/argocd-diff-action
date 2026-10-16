@@ -32,6 +32,7 @@ jobs:
           argocd-version: v1.6.1
           argocd-extra-cli-args: --grpc-web
           app-path-filter: charts/
+          comment: true
 ```
 
 ## How it works
@@ -40,7 +41,7 @@ jobs:
 2. Connects to the ArgoCD API using the `argocd-token`, and gets all the apps
 3. Filters the apps to the ones that live in the current repo. If you set `app-path-filter`, it keeps only the apps whose source path starts with that prefix
 4. Runs `argocd app diff` for each app
-5. Posts the diff output as a comment on the PR
+5. Posts the diff output as a comment on the PR, unless `comment` is `false`. Either way, the action fails if a diff could not be generated
 
 ## Publishing
 

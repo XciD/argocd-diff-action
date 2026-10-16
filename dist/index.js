@@ -63,6 +63,7 @@ const ARGOCD_TOKEN = core.getInput('argocd-token');
 const VERSION = core.getInput('argocd-version');
 const EXTRA_CLI_ARGS = core.getInput('argocd-extra-cli-args');
 const APP_PATH_FILTER = core.getInput('app-path-filter');
+const COMMENT = core.getInput('comment') !== 'false';
 const octokit = github.getOctokit(githubToken);
 function execCommand(command_1) {
     return __awaiter(this, arguments, void 0, function* (command, options = {}) {
@@ -301,11 +302,13 @@ function run() {
                 }
             }
         }));
-        try {
-            yield postDiffComments(diffs);
-        }
-        catch (e) {
-            core.error(e);
+        if (COMMENT) {
+            try {
+                yield postDiffComments(diffs);
+            }
+            catch (e) {
+                core.error(e);
+            }
         }
         const diffsWithErrors = diffs.filter(d => d.error);
         if (diffsWithErrors.length) {
